@@ -1,0 +1,50 @@
+aws iam create-user --user-name user-1
+aws iam create-user --user-name user-2
+aws iam create-user --user-name user-3
+aws iam create-group --group-name EC2-admin
+aws iam create-group --group-name EC2-support
+aws iam create-group --group-name S3-support
+
+
+aws iam add-user-to-group --user-name user-3 --group-name EC2-admin
+
+[
+echo '{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "VisualEditor0",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:DescribeInstances",
+        "ec2:StartInstances",
+        "ec2:StopInstances"
+      ],
+      "Resource": "*"
+    }
+  ]
+}' > ec2-policy.json
+]
+
+aws iam put-group-policy --group-name EC2-admin --policy-name AmazonEC2-ViewStartStopAccess --policy-document file://ec2-policy.json
+
+aws iam add-user-to-group --user-name user-2 --group-name EC2-support
+
+[
+echo '{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "VisualEditor0",
+      "Effect": "Allow",
+      "Action": "ec2:Describe*",
+      "Resource": "*"
+    }
+  ]
+}' > ec2-support-policy.json
+]
+
+aws iam put-group-policy --group-name EC2-support --policy-name AmazonEC2-ReadOnlyAccess --policy-document file://ec2-support-policy.json
+
+aws iam add-user-to-group --user-name user-1 --group-name S3-support
+aws iam attach-user-policy --user-name user-1 --policy-arn arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
