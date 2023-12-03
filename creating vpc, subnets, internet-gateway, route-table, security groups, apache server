@@ -1,0 +1,89 @@
+1- create a vpc 
+aws ec2 create-vpc --cidr-block 10.0.0.0/16
+2- create two public subnets:
+aws ec2 create-subnet --vpc-id vpc-0193b7db97fbda506 --availability-zone us-east-1a --cidr-block 10.0.1.0/24 --tag-specifications 'ResourceType=subnet,Tags=[{Key=Name,Value=lab-subnet-public1-us-east-1a}]'
+
+3-aws ec2 create-subnet --vpc-id vpc-0193b7db97fbda506 --availability-zone us-east-1a --cidr-block 10.0.2.0/24 --tag-specifications 'ResourceType=subnet,Tags=[{Key=Name,Value=lab-subnet-public1-us-east-1a}]'
+
+4- create internet gateway:
+aws ec2 create-internet-gateway --tag-specifications 'ResourceType=internet-gateway,Tags=[{Key=Name,Value=lab-igw}]'
+
+5- associate it with the vpc:
+aws ec2 attach-internet-gateway --internet-gateway-id igw-0d1ae3cd536e46c66 --vpc-id vpc-0193b7db97fbda506
+
+6- create a route table:
+aws ec2 create-route-table --vpc-id vpc-0193b7db97fbda506 --tag-specifications 'ResourceType=route-table,Tags=[{Key=Name,Value=lab-rtb-public}]'
+
+7- add a route to the internet gateway:
+aws ec2 create-route --route-table-id rtb-0d87b2d7df176e585 --destination-cidr-block 0.0.0.0/0 --gateway-id igw-0d1ae3cd536e46c66
+
+8- Associate the subnets with the route table:
+aws ec2 associate-route-table --route-table-id rtb-0d87b2d7df176e585 --subnet-id subnet-0a634d629770d9f57
+aws ec2 associate-route-table --route-table-id rtb-0d87b2d7df176e585 --subnet-id subnet-00ed5de53b96e595b
+
+9- create a group:
+aws ec2 create-security-group --group-name nam --description "Security group for web server access (HTTP/HTTPS)" --vpc-id vpc-0193b7db97fbda506 
+
+10- for web tier:
+
+aws ec2 run-instances \
+  --image-id ami-06ca3ca175f37dd66 \
+  --instance-type t2.micro \
+  --subnet-id subnet-0a634d629770d9f57 \
+  --key-name vockey \
+  --count 1
+
+11- for website tier:
+aws ec2 run-instances \
+  --image-id ami-06ca3ca175f37dd66 \
+  --instance-type t2.micro \
+  --subnet-id subnet-00ed5de53b96e595b \
+  --key-name vockey \
+  --count 1
+
+12- Create a new security group for the web tier and define the appropriate rules using AWS CLI:
+aws ec2 create-security-group --group-name WEB_TIER_SECURITY_GROUP_NAME --description WEB_TIER_SECURITY_GROUP_DESCRIPTION
+
+13- Create a new security group for the web tier and define the appropriate rules using AWS CLI:
+aws ec2 create-security-group --group-name APP_TIER_SECURITY_GROUP_NAME --description APP_TIER_SECURITY_GROUP_DESCRIPTION
+
+14- Configure the appropriate inbound rules for the web tier security group:
+aws ec2 authorize-security-group-ingress --group-id sg-0335d2f6810e4e867 --protocol tcp --port 22 --cidr 203.0.113.0/24
+
+15- Configure the appropriate inbound rules for the app tier security group:
+aws ec2 authorize-security-group-ingress --group-id sg-0e8fd5df6806f3939 --protocol tcp --port 22 --cidr 203.0.113.0/24
+
+16- associate for the web tier EC2 instance:
+aws ec2 modify-instance-attribute --instance-id <web-tier-instance-id> --groups <web-tier-security-group-id>
+
+aws ec2 modify-instance-attribute --instance-id i-abcdef01234567890 --groups sg-abcdef01234567890
+
+aws ec2-instance-connect send-ssh-public-key --instance-id <web-tier-instance-id> --availability-zone <availability-zone> --instance-os-user ec2-user --ssh-public-key file://path/to/your/public/key.pub
+
+17- #!/bin/bash
+
+# Install necessary software and dependencies
+sudo yum update -y
+sudo yum install -y httpd
+
+# Start Apache web service
+sudo systemctl start httpd
+sudo systemctl enable httpd
+
+# Deploy web application files
+sudo cp -r /path/to/your/webapp/* /var/www/html/
+
+# Set appropriate permissions
+sudo chown -R apache:apache /var/www/html/
+sudo chmod -R 755 /var/www/html/
+
+./deploy-webapp.sh
+
+18- aws ec2-instance-connect send-ssh-public-key --instance-id <application-tier-instance-id> --availability-zone <availability-zone> --instance-os-user ec2-user --ssh-public-key file://path/to/your/public/key.pub
+
+19- sudo vi /path/to/your/application/config/file
+
+20- aws ec2 allocate-address --domain vpc
+21- aws ec2 associate-address --instance-id <web-tier-instance-id> --public-ip <elastic-ip-address>
+
+22- aws ec2 create-image --instance-id <web-tier-instance-id> --name "web-tier-ami" --description "AMI for web tier backup"
